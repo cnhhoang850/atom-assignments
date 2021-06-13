@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import requests
@@ -93,66 +92,14 @@ def load_msg_dict():
     msg_df = pd.DataFrame(msg_dict)
     return msg_df
 
-def process_msg_data(msg_df, user_df, channel_df):
-    ## Extract 2 reply_users
-    msg_df['reply_user1'] = msg_df['reply_users'].apply(lambda x: x[0] if x != 0 else '')
-    msg_df['reply_user2'] = msg_df['reply_users'].apply(lambda x: x[1] if x != 0 and len(x) > 1 else '')
-    ## Merge to have a nice name displayed
-    msg_df = msg_df.merge(user_df[['user_id','name','DataCracy_role']].rename(columns={'name':'submit_name'}), \
-        how='left',on='user_id')
-    msg_df = msg_df.merge(user_df[['user_id','name']].rename(columns={'name':'reply1_name','user_id':'reply1_id'}), \
-        how='left', left_on='reply_user1', right_on='reply1_id')
-    msg_df = msg_df.merge(user_df[['user_id','name']].rename(columns={'name':'reply2_name','user_id':'reply2_id'}), \
-        how='left', left_on='reply_user2', right_on='reply2_id')
-    ## Merge for nice channel name
-    msg_df = msg_df.merge(channel_df[['channel_id','channel_name','created_at']], how='left',on='channel_id')
-    ## Format datetime cols
-    msg_df['created_at'] = msg_df['created_at'].dt.strftime('%Y-%m-%d')
-    msg_df['msg_date'] = msg_df['msg_ts'].dt.strftime('%Y-%m-%d')
-    msg_df['msg_time'] = msg_df['msg_ts'].dt.strftime('%H:%M')
-    msg_df['wordcount'] = msg_df.text.apply(lambda s: len(s.split()))
-    return msg_df
-
-
-# Table data
-user_df = load_users_df()
-channel_df = load_channel_df()
-msg_df = load_msg_dict()
-
-#st.write(process_msg_data(msg_df, user_df, channel_df))
-
-
-# Input
-st.sidebar.markdown('## Thông tin')
-user_id = st.sidebar.text_input("Nhập Mã Số Người Dùng", 'U01xxxx')
-
-
-valid_user_id = user_df['user_id'].str.contains(user_id).any()
-if valid_user_id:
-    filter_user_df = user_df[user_df.user_id == user_id] ## dis = display =]]
-    p_msg_df = process_msg_data(filter_msg_df, user_df, channel_df)
-
-    ## Submission
-    submit_df = p_msg_df[p_msg_df.channel_name.str.contains('assignment')]
-    submit_df = submit_df[submit_df.DataCracy_role.str.contains('Learner')]
-    submit_df = submit_df[submit_df.user_id == user_id]
-    latest_ts = submit_df.groupby(['assignment', 'user_id']).msg_ts.idxmax() ## -> Latest ts
-    submit_df = submit_df.loc[latest_ts]
-    dis_cols1 = ['assignment', 'created_at','msg_date','msg_time','reply_user_count', 'reply1_name']
-    
-    # Review
-    review_df = p_msg_df[p_msg_df.user_id != user_id] ##-> Remove the case self-reply
-    review_df = review_df[review_df.channel_name.str.contains('assignment')]
-    review_df = review_df[review_df.DataCracy_role.str.contains('Learner')]
-    dis_cols2 = ['assignment', 'created_at','msg_date','msg_time','reply_user_count','submit_name']
-    
-    
     st.markdown('Hello **{}**!'.format(list(filter_user_df['real_name'])[0]))
     st.write(filter_user_df)
     st.markdown('## Lịch sử Nộp Assignment')
     st.write(submit_df[dis_cols1])
     st.markdown('## Lịch sử Review Assignment')
     st.write(review_df[dis_cols2])
+    st.markdown('## Lịch sử Discussion')
+    st.write(discuss_df[dis_cols3])
 
     # Number cards on Sidebar
     st.sidebar.markdown(f'''<div class="card text-info bg-info mb-3" style="width: 18rem">
@@ -183,8 +130,4 @@ if valid_user_id:
     <p class="card-text">{sum(discuss_df['wordcount']):,d} chữ</p>
     </div>
     </div>''', unsafe_allow_html=True)
-    
-else:
-    st.markdown('Không tìm thấy Mã Số {}'.format(user_id))
-
-## Run: streamlit run streamlit/datacracy_slack.py
+ 
